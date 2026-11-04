@@ -4,10 +4,15 @@ import { useState, useEffect } from 'react';
 import { supabase, formatBestellNummer } from '../../lib/supabase';
 
 export default function AbholMonitor() {
+  const [freigeschaltet, setFreigeschaltet] = useState(false);
+  const [pinEingabe, setPinEingabe] = useState('');
+  const STAFF_PIN = process.env.NEXT_PUBLIC_STAFF_PIN || '1234';
+
   const [inArbeit, setInArbeit] = useState([]);
   const [fertig, setFertig] = useState([]);
 
   useEffect(() => {
+    if (!freigeschaltet) return;
     ladeMonitorDaten();
 
     const channel = supabase
@@ -24,7 +29,7 @@ export default function AbholMonitor() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [freigeschaltet]);
 
   async function ladeMonitorDaten() {
     const { data } = await supabase
@@ -37,6 +42,33 @@ export default function AbholMonitor() {
       setInArbeit(data.filter((b) => b.status === 'In Arbeit'));
       setFertig(data.filter((b) => b.status === 'Fertig'));
     }
+  }
+
+  // PIN-Sperrbildschirm für den Monitor
+  if (!freigeschaltet) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="bg-slate-900 p-8 rounded-3xl max-w-sm w-full text-center border border-slate-800">
+          <h1 className="text-2xl font-black text-white mb-4">Monitor Login</h1>
+          <input
+            type="password"
+            placeholder="PIN (Standard: 1234)"
+            value={pinEingabe}
+            onChange={(e) => setPinEingabe(e.target.value)}
+            className="w-full p-4 rounded-xl bg-slate-950 text-white text-center text-2xl font-bold mb-4 border border-slate-700"
+          />
+          <button
+            onClick={() => {
+              if (pinEingabe === STAFF_PIN) setFreigeschaltet(true);
+              else alert('Falscher PIN!');
+            }}
+            className="w-full bg-emerald-600 text-white font-black py-4 rounded-xl text-lg"
+          >
+            Monitor starten
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
