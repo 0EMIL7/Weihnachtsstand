@@ -4,11 +4,16 @@ import { useState, useEffect } from 'react';
 import { supabase, formatBestellNummer } from '../../lib/supabase';
 
 export default function KuechenDisplay() {
+  const [freigeschaltet, setFreigeschaltet] = useState(false);
+  const [pinEingabe, setPinEingabe] = useState('');
+  const STAFF_PIN = process.env.NEXT_PUBLIC_STAFF_PIN || '1234';
+
   const [inArbeitListe, setInArbeitListe] = useState([]);
   const [fertigListe, setFertigListe] = useState([]);
   const [aktiveBestellungId, setAktiveBestellungId] = useState(null);
 
   useEffect(() => {
+    if (!freigeschaltet) return;
     ladeKuechenDaten();
 
     const channel = supabase
@@ -25,7 +30,7 @@ export default function KuechenDisplay() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [freigeschaltet]);
 
   async function ladeKuechenDaten() {
     const { data } = await supabase
@@ -58,11 +63,37 @@ export default function KuechenDisplay() {
     ladeKuechenDaten();
   }
 
+  // PIN-Sperrbildschirm
+  if (!freigeschaltet) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="bg-slate-800 p-8 rounded-3xl max-w-sm w-full text-center border border-slate-700">
+          <h1 className="text-2xl font-black text-white mb-4">Küchen-iPad Login</h1>
+          <input
+            type="password"
+            placeholder="Personal-PIN (Standard: 1234)"
+            value={pinEingabe}
+            onChange={(e) => setPinEingabe(e.target.value)}
+            className="w-full p-4 rounded-xl bg-slate-900 text-white text-center text-2xl font-bold mb-4 border border-slate-600"
+          />
+          <button
+            onClick={() => {
+              if (pinEingabe === STAFF_PIN) setFreigeschaltet(true);
+              else alert('Falscher PIN!');
+            }}
+            className="w-full bg-emerald-600 text-white font-black py-4 rounded-xl text-lg"
+          >
+            Entsperren
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const ausgewählteBestellung = inArbeitListe.find((b) => b.id === aktiveBestellungId);
 
   return (
     <div className="min-h-screen bg-slate-900 text-white grid grid-cols-1 lg:grid-cols-12">
-      {/* Linke Spalte (4/12): Warteschlange der bezahlten Bestellungen */}
       <div className="lg:col-span-4 border-r border-slate-800 p-4 flex flex-col justify-between">
         <div>
           <h1 className="text-xl font-black text-amber-400 uppercase tracking-wider mb-4">
@@ -88,7 +119,6 @@ export default function KuechenDisplay() {
           </div>
         </div>
 
-        {/* Unten links: Bereits als 'Fertig' gerufene Nummern zum Ausblenden nach Abholung */}
         <div className="border-t border-slate-800 pt-4 mt-6">
           <h2 className="text-sm font-bold text-emerald-400 uppercase mb-2">
             Abholbereit am Monitor ({fertigListe.length}) – Tippen wenn abgeholt:
@@ -108,7 +138,6 @@ export default function KuechenDisplay() {
         </div>
       </div>
 
-      {/* Rechte Hauptansicht (8/12): Grosse Detail-Ansicht zum Zubereiten */}
       <div className="lg:col-span-8 p-8 flex flex-col justify-between">
         {!ausgewählteBestellung ? (
           <div className="m-auto text-center text-slate-500">
@@ -131,7 +160,6 @@ export default function KuechenDisplay() {
                 </div>
               </div>
 
-              {/* Artikel & Extras gross hervorheben */}
               <div className="space-y-4">
                 {ausgewählteBestellung.bestellpositionen?.map((pos) => (
                   <div
